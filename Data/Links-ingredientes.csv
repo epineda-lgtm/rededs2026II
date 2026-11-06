@@ -1,0 +1,56 @@
+Origen,Destino,Peso
+ITALY,Olive Oil,20
+ITALY,Black Pepper,15
+ITALY,Garlic,12
+ITALY,Onion,12
+ITALY,Butter,9
+SPAIN,Olive Oil,25
+SPAIN,Garlic,18
+SPAIN,Onion,14
+SPAIN,Tomato,10
+SPAIN,Eggs,9
+JAPAN,Soy Sauce,18
+JAPAN,Eggs,13
+JAPAN,Scallion,10
+JAPAN,Pork,10
+JAPAN,Mirin,9
+INDIA,Hot Pepper,30
+INDIA,Ginger,30
+INDIA,Coriander,27
+INDIA,Garlic,26
+INDIA,Onion,24
+MEXICO,Onion,28
+MEXICO,Garlic,24
+MEXICO,Tomato,15
+MEXICO,Tortilla,12
+MEXICO,Coriander,11
+TURKIYE,Onion,28
+TURKIYE,Olive Oil,23
+TURKIYE,Lamb,19
+TURKIYE,Garlic,18
+TURKIYE,Parsley,17
+USA,Onion,11
+USA,Garlic,8
+USA,Black Pepper,7
+USA,Flour,6
+USA,Beef,6
+FRANCE,Butter,8
+FRANCE,Black Pepper,7
+FRANCE,Garlic,6
+FRANCE,Onion,6
+FRANCE,Eggs,4
+PERU,Onion,32
+PERU,Garlic,30
+PERU,Black Pepper,27
+PERU,Potato,18
+PERU,Oil,16
+SOUTH KOREA,Garlic,30
+SOUTH KOREA,Soy Sauce,20
+SOUTH KOREA,Scallion,19
+SOUTH KOREA,Sesame Oil,18
+SOUTH KOREA,Sugar,16
+THAILAND,Garlic,34
+THAILAND,Fish Sauce,25
+THAILAND,Sugar,23
+THAILAND,Coriander,22
+THAILAND,Shallot,17

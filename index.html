@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Carreteras - Visualización de Redes de México</title>
+  <title>Redes de Ingredientes</title>
   <!-- D3.js v7 Librería principal para cálculo, procesamiento e interacciones SVG -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <!-- Tailwind CSS para diseño y estilos responsivos modernos -->
@@ -78,14 +78,14 @@
         </svg>
       </div>
       <div>
-        <h1 class="font-bold text-lg text-slate-100 leading-tight">Carreteras de México</h1>
-        <p class="text-xs text-slate-400">Red Vial de Capitales & Distancias Interurbanas</p>
+        <h1 class="font-bold text-lg text-slate-100 leading-tight">Redes de Ingredientes</h1>
+        <p class="text-xs text-slate-400">Relaciones entre países e ingredientes</p>
       </div>
     </div>
 
     <!-- Pestañas de Modos de Visualización -->
     <nav class="flex items-center space-x-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800 overflow-x-auto max-w-full">
-      <button onclick="setMode('map')" id="btn-map" class="nav-tab px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-indigo-600 text-white shadow-sm">
+      <button onclick="setMode('map')" id="btn-map" class="nav-tab px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
         📍 Mapa
       </button>
       <button onclick="setMode('force')" id="btn-force" class="nav-tab px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
@@ -103,24 +103,27 @@
       <button onclick="setMode('arc')" id="btn-arc" class="nav-tab px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
         🌈 Arco
       </button>
-      <button onclick="setMode('bipartite')" id="btn-bipartite" class="nav-tab px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+      <button onclick="setMode('bipartite')" id="btn-bipartite" class="nav-tab px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-indigo-600 text-white shadow-sm">
         📊 Bipartito
       </button>
     </nav>
 
-    <!-- Botones para Cargar CSVs Personalizados -->
-    <div class="flex items-center gap-2">
-      <label class="cursor-pointer px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
-        <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-        Cargar nodos
-        <input type="file" id="nodes-file-input" accept=".csv" class="hidden" onchange="handleFileSelect(event, 'nodes')">
-      </label>
-      <label class="cursor-pointer px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
-        <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-        Cargar conexiones
-        <input type="file" id="links-file-input" accept=".csv" class="hidden" onchange="handleFileSelect(event, 'links')">
-      </label>
-      <button onclick="exportCSVTemplates()" title="Descargar plantillas de ejemplo CSV" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded-lg border border-slate-700 transition">
+    <!-- Carga opcional de archivos CSV -->
+    <div class="relative ml-auto flex items-center gap-2">
+      <button onclick="toggleUploadMenu()" id="upload-menu-button" aria-expanded="false" aria-controls="upload-menu" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 rounded-lg border border-slate-700 transition">
+        Cargar datos adicionales
+      </button>
+      <div id="upload-menu" class="hidden absolute top-full right-0 mt-2 p-2 w-52 bg-slate-900 border border-slate-700 rounded-xl shadow-xl z-40 space-y-2">
+        <label class="block cursor-pointer px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 rounded-lg transition">
+          Cargar nodos
+          <input type="file" id="nodes-file-input" accept=".csv" class="hidden" onchange="handleFileSelect(event, 'nodes')">
+        </label>
+        <label class="block cursor-pointer px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 rounded-lg transition">
+          Cargar conexiones
+          <input type="file" id="links-file-input" accept=".csv" class="hidden" onchange="handleFileSelect(event, 'links')">
+        </label>
+      </div>
+      <button onclick="exportCSVTemplates()" title="Descargar CSV de nodos y conexiones" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded-lg border border-slate-700 transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
       </button>
     </div>
@@ -133,10 +136,10 @@
     <aside id="sidebar" class="w-72 bg-slate-900/95 border-r border-slate-800 flex flex-col justify-between transition-all duration-300 z-10">
       <div class="p-4 space-y-5 overflow-y-auto max-h-full">
         
-        <!-- Sección Leyenda y Filtros de Regiones/Categorías -->
+        <!-- Sección Leyenda y Filtros de Categorías -->
         <div>
           <div class="flex items-center justify-between mb-3">
-            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Categorías / Regiones</h2>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Categorías</h2>
             <button onclick="toggleAllCategories(true)" class="text-[10px] text-indigo-400 hover:underline">Todas</button>
           </div>
           <div id="categories-list" class="space-y-1.5">
@@ -150,11 +153,11 @@
           <div class="space-y-2 text-xs text-slate-300">
             <label class="flex items-center space-x-2 cursor-pointer hover:text-white">
               <input type="checkbox" id="layer-nodes" checked onchange="toggleLayer('nodes')" class="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0">
-              <span>Nodos (Capitales)</span>
+              <span>Nodos</span>
             </label>
             <label class="flex items-center space-x-2 cursor-pointer hover:text-white">
               <input type="checkbox" id="layer-links" checked onchange="toggleLayer('links')" class="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0">
-              <span>Conexiones (Carreteras)</span>
+              <span>Conexiones</span>
             </label>
             <label class="flex items-center space-x-2 cursor-pointer hover:text-white">
               <input type="checkbox" id="layer-labels" checked onchange="toggleLayer('labels')" class="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0">
@@ -171,11 +174,33 @@
           </div>
         </div>
 
+        <div class="pt-3 border-t border-slate-800">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Colores</h2>
+            <button onclick="resetColors()" class="text-[10px] text-indigo-400 hover:underline">Restablecer</button>
+          </div>
+          <p class="text-[10px] text-slate-500 mb-2">Nodos y conexiones conservan sus colores por categoría hasta elegir uno.</p>
+          <div class="space-y-2 text-xs text-slate-300">
+            <label class="flex items-center justify-between gap-2">
+              <span>Nodos</span>
+              <input type="color" id="color-nodes" value="#64748b" aria-label="Color de nodos" onchange="updateColor('nodes', this.value)" class="h-7 w-10 cursor-pointer rounded border border-slate-700 bg-slate-800 p-0.5">
+            </label>
+            <label class="flex items-center justify-between gap-2">
+              <span>Conexiones</span>
+              <input type="color" id="color-links" value="#64748b" aria-label="Color de conexiones" onchange="updateColor('links', this.value)" class="h-7 w-10 cursor-pointer rounded border border-slate-700 bg-slate-800 p-0.5">
+            </label>
+            <label class="flex items-center justify-between gap-2">
+              <span>Fondo</span>
+              <input type="color" id="color-background" value="#0b0f19" aria-label="Color de fondo" onchange="updateColor('background', this.value)" class="h-7 w-10 cursor-pointer rounded border border-slate-700 bg-slate-800 p-0.5">
+            </label>
+          </div>
+        </div>
+
         <!-- Resumen de Métricas -->
         <div class="pt-3 border-t border-slate-800 text-xs text-slate-400 space-y-1">
-          <div class="flex justify-between"><span>Capitales cargadas:</span> <strong id="total-nodes-val" class="text-slate-200">0</strong></div>
-          <div class="flex justify-between"><span>Tramos carreteros:</span> <strong id="total-links-val" class="text-slate-200">0</strong></div>
-          <div class="flex justify-between"><span>Distancia red total:</span> <strong id="total-dist-val" class="text-indigo-400">0 km</strong></div>
+          <div class="flex justify-between"><span>Nodos cargados:</span> <strong id="total-nodes-val" class="text-slate-200">0</strong></div>
+          <div class="flex justify-between"><span>Conexiones cargadas:</span> <strong id="total-links-val" class="text-slate-200">0</strong></div>
+          <div class="flex justify-between"><span>Peso total:</span> <strong id="total-dist-val" class="text-indigo-400">0</strong></div>
         </div>
       </div>
 
@@ -247,7 +272,7 @@
       nodeMap: new Map(),
       categories: new Set(),
       activeCategories: new Set(),
-      activeMode: 'map', // Modes: map, force, radial, chord, concentric, arc, bipartite
+      activeMode: 'bipartite', // Modes: map, force, radial, chord, concentric, arc, bipartite
       selectedNode: null,
       hasNodeWeights: false,
       hasLinkWeights: false,
@@ -260,85 +285,21 @@
         arrows: true,
         isolated: false
       },
+      colors: {
+        nodes: null,
+        links: null,
+        background: "#0b0f19"
+      },
       zoomBehavior: null,
       simulation: null,
       isolatedNodesCount: 0,
       columnsFound: { nodes: [], links: [] }
     };
 
-    // ==========================================
-    // DATASET POR DEFECTO: CAPITALES DE MÉXICO
-    // ==========================================
-    const DEFAULT_MEXICO_NODES_CSV = `Nombre,Categoria,Peso,Latitud,Longitud
-Aguascalientes,Centro,1.3,21.882,102.296
-Mexicali,Norte,1.0,32.625,-115.454
-La Paz,Norte,0.8,24.142,-110.312
-Campeche,Península,1.1,19.830,-90.535
-Saltillo,Norte,1.4,25.423,-101.000
-Colima,Occidente,0.9,19.243,-103.725
-Tuxtla Gutiérrez,Sur,1.2,16.750,-93.117
-Chihuahua,Norte,1.5,28.633,-106.069
-Ciudad de México,Centro,3.0,19.433,-99.133
-Durango,Norte,1.1,24.027,-104.658
-Guanajuato,Centro,1.5,21.019,-101.257
-Chilpancingo,Sur,1.0,17.551,-99.500
-Pachuca,Centro,1.3,20.101,-98.759
-Guadalajara,Occidente,2.5,20.659,-103.349
-Toluca,Centro,1.8,19.283,-99.656
-Morelia,Occidente,1.6,19.701,-101.185
-Cuernavaca,Centro,1.4,18.926,-99.231
-Tepic,Occidente,1.0,21.504,-104.895
-Monterrey,Norte,2.6,25.686,-100.316
-Oaxaca,Sur,1.3,17.073,-96.727
-Puebla,Centro,2.2,19.041,-98.206
-Querétaro,Centro,2.0,20.588,-100.389
-Chetumal,Península,1.0,18.514,-88.303
-San Luis Potosí,Centro,1.9,22.156,-100.985
-Culiacán,Norte,1.4,24.809,-107.394
-Hermosillo,Norte,1.5,29.073,-110.956
-Villahermosa,Sur,1.3,17.989,-92.928
-Ciudad Victoria,Norte,1.2,23.736,-99.141
-Tlaxcala,Centro,1.1,19.318,-98.238
-Xalapa,Oriente,1.6,19.543,-96.910
-Mérida,Península,1.8,20.967,-89.624
-Zacatecas,Centro,1.2,22.771,-102.583`;
-
-    const DEFAULT_MEXICO_LINKS_CSV = `Origen,Destino,Peso,Tipo,Sentido
-San Luis Potosí,Querétaro,203,Cuota,Ambos
-Querétaro,Ciudad de México,218,Cuota,Ambos
-Ciudad de México,Toluca,65,Cuota,Ambos
-Ciudad de México,Puebla,130,Cuota,Ambos
-Ciudad de México,Cuernavaca,85,Cuota,Ambos
-Ciudad de México,Pachuca,90,Cuota,Ambos
-Ciudad de México,Tlaxcala,115,Libre,Ambos
-Guadalajara,Morelia,285,Cuota,Ambos
-Guadalajara,Tepic,205,Cuota,Ambos
-Guadalajara,Colima,220,Cuota,Ambos
-Guadalajara,Guanajuato,270,Cuota,Ambos
-Monterrey,Saltillo,85,Cuota,Ambos
-Monterrey,Ciudad Victoria,280,Libre,Ambos
-Saltillo,San Luis Potosí,440,Cuota,Ambos
-San Luis Potosí,Zacatecas,190,Libre,Ambos
-San Luis Potosí,Guanajuato,180,Libre,Ambos
-San Luis Potosí,Aguascalientes,170,Cuota,Ambos
-Aguascalientes,Zacatecas,118,Libre,Ambos
-Guanajuato,Querétaro,150,Cuota,Ambos
-Morelia,Toluca,240,Libre,Ambos
-Cuernavaca,Chilpancingo,210,Cuota,Ambos
-Puebla,Xalapa,180,Cuota,Ambos
-Puebla,Oaxaca,340,Cuota,Ambos
-Xalapa,Villahermosa,550,Libre,Ambos
-Villahermosa,Tuxtla Gutiérrez,240,Libre,Ambos
-Villahermosa,Campeche,380,Cuota,Ambos
-Campeche,Mérida,175,Cuota,Ambos
-Mérida,Chetumal,380,Libre,Ambos
-Chihuahua,Hermosillo,690,Libre,Ambos
-Chihuahua,Culiacán,1100,Libre,Ambos
-Chihuahua,Monterrey,810,Cuota,Ambos
-Hermosillo,Mexicali,690,Cuota,Ambos
-Culiacán,Tepic,490,Cuota,Ambos
-Durango,Zacatecas,290,Cuota,Ambos
-Durango,Culiacán,230,Cuota,Ambos`;
+    const DEFAULT_NODES_PATH = "Data/Points-ingredientes.csv";
+    const DEFAULT_LINKS_PATH = "Data/Links-ingredientes.csv";
+    let defaultNodesCSV = null;
+    let defaultLinksCSV = null;
 
     // ==========================================
     // 3 LECTURA Y PROCESAMIENTO DE CSV
@@ -525,6 +486,14 @@ Durango,Culiacán,230,Cuota,Ambos`;
       return "#" + "00000".substring(0, 6 - c.length) + c;
     }
 
+    function getDisplayNodeColor(category) {
+      return state.colors.nodes || getNodeColor(category);
+    }
+
+    function getDisplayLinkColor(category) {
+      return state.colors.links || getNodeColor(category);
+    }
+
     /**
      * Escala proporcional para el radio del nodo
      */
@@ -581,6 +550,7 @@ Durango,Culiacán,230,Cuota,Ambos`;
     function renderCurrentMode() {
       const svg = d3.select("#network-svg");
       svg.selectAll("*").remove(); // Limpiar lienzo anterior
+      svg.style("background-color", state.colors.background);
 
       const width = svg.node().clientWidth || window.innerWidth;
       const height = svg.node().clientHeight || window.innerHeight;
@@ -773,7 +743,7 @@ Durango,Culiacán,230,Cuota,Ambos`;
         .enter().append("g");
 
       groupG.append("path")
-        .attr("fill", d => getNodeColor(nodes[d.index].category))
+        .attr("fill", d => getDisplayNodeColor(nodes[d.index].category))
         .attr("stroke", "#0f172a")
         .attr("d", arcGenerator)
         .on("mouseover", (event, d) => showTooltipNode(event, nodes[d.index]))
@@ -803,7 +773,7 @@ Durango,Culiacán,230,Cuota,Ambos`;
           .data(chordLayout)
           .enter().append("path")
           .attr("d", ribbonGenerator)
-          .attr("fill", d => getNodeColor(nodes[d.source.index].category))
+          .attr("fill", d => getDisplayLinkColor(nodes[d.source.index].category))
           .attr("stroke", "#0f172a")
           .attr("stroke-width", 0.5)
           .on("mouseover", (event, d) => {
@@ -899,7 +869,7 @@ Durango,Culiacán,230,Cuota,Ambos`;
             linksGroup.append("path")
               .attr("d", pathD)
               .attr("fill", "none")
-              .attr("stroke", getNodeColor(u.category))
+              .attr("stroke", getDisplayLinkColor(u.category))
               .attr("stroke-width", linkWidthScale(l.weight))
               .attr("stroke-opacity", 0.5)
               .attr("stroke-dasharray", (l.type === "Libre" || l.type === "Punteada") ? DASHED_LINE_ARRAY : null)
@@ -964,7 +934,7 @@ Durango,Culiacán,230,Cuota,Ambos`;
             linksGroup.append("path")
               .attr("d", linkGen({ source: u, target: v }))
               .attr("fill", "none")
-              .attr("stroke", getNodeColor(u.category))
+              .attr("stroke", getDisplayLinkColor(u.category))
               .attr("stroke-width", linkWidthScale(l.weight))
               .attr("stroke-opacity", 0.4)
               .on("mouseover", (event) => showTooltipLink(event, l))
@@ -1011,7 +981,7 @@ Durango,Culiacán,230,Cuota,Ambos`;
         .attr("y1", d => d.sourceObj.y)
         .attr("x2", d => d.targetObj.x)
         .attr("y2", d => d.targetObj.y)
-        .attr("stroke", d => getNodeColor(d.sourceObj.category))
+        .attr("stroke", d => getDisplayLinkColor(d.sourceObj.category))
         .attr("stroke-opacity", 0.5)
         .attr("stroke-width", d => linkWidthScale(d.weight))
         .attr("stroke-dasharray", d => (d.type === "Libre" || d.type === "Punteada") ? DASHED_LINE_ARRAY : null)
@@ -1032,7 +1002,7 @@ Durango,Culiacán,230,Cuota,Ambos`;
         .attr("class", "link-element")
         .attr("stroke", d => {
           const cat = typeof d.source === 'object' ? d.source.category : 'General';
-          return getNodeColor(cat);
+          return getDisplayLinkColor(cat);
         })
         .attr("stroke-opacity", 0.5)
         .attr("stroke-width", d => linkWidthScale(d.weight))
@@ -1061,7 +1031,7 @@ Durango,Culiacán,230,Cuota,Ambos`;
       // Círculo principal del nodo
       nodeGroup.append("circle")
         .attr("r", d => rScale(state.hasNodeWeights ? d.weight : d.degree))
-        .attr("fill", d => getNodeColor(d.category))
+        .attr("fill", d => getDisplayNodeColor(d.category))
         .attr("stroke", "#1e293b")
         .attr("stroke-width", 2)
         .attr("shadow-sm", true);
@@ -1144,7 +1114,7 @@ Durango,Culiacán,230,Cuota,Ambos`;
       d3.select("#tooltip-title").text(d.name);
 
       let content = `
-        <div><strong>Categoría/Zona:</strong> ${d.category}</div>
+        <div><strong>Categoría:</strong> ${d.category}</div>
         <div><strong>Conexiones (Grado):</strong> ${d.degree}</div>
       `;
       if (state.hasNodeWeights) {
@@ -1171,8 +1141,8 @@ Durango,Culiacán,230,Cuota,Ambos`;
       d3.select("#tooltip-title").text(`${srcName} ↔ ${tgtName}`);
 
       let content = `
-        <div><strong>Distancia/Peso:</strong> ${d.weight} km</div>
-        <div><strong>Tipo de Vía:</strong> ${d.type}</div>
+        <div><strong>Peso de conexión:</strong> ${d.weight}</div>
+        <div><strong>Tipo:</strong> ${d.type}</div>
         <div><strong>Sentido:</strong> ${d.direction}</div>
       `;
 
@@ -1211,6 +1181,26 @@ Durango,Culiacán,230,Cuota,Ambos`;
         .classed("bg-indigo-600 text-white shadow-sm", true)
         .classed("text-slate-400 hover:text-slate-200 hover:bg-slate-800/60", false);
 
+      renderCurrentMode();
+    }
+
+    function updateColor(target, color) {
+      if (target !== "nodes" && target !== "links" && target !== "background") {
+        console.error("Tipo de color no válido:", target);
+        return;
+      }
+
+      state.colors[target] = color;
+      renderCurrentMode();
+    }
+
+    function resetColors() {
+      state.colors.nodes = null;
+      state.colors.links = null;
+      state.colors.background = "#0b0f19";
+      document.getElementById("color-nodes").value = "#64748b";
+      document.getElementById("color-links").value = "#64748b";
+      document.getElementById("color-background").value = state.colors.background;
       renderCurrentMode();
     }
 
@@ -1262,8 +1252,8 @@ Durango,Culiacán,230,Cuota,Ambos`;
       d3.select("#total-links-val").text(state.links.length);
       d3.select("#isolated-count").text(state.isolatedNodesCount);
 
-      const totalKm = state.links.reduce((acc, curr) => acc + (curr.weight || 0), 0);
-      d3.select("#total-dist-val").text(`${totalKm.toLocaleString()} km`);
+      const totalWeight = state.links.reduce((acc, curr) => acc + (curr.weight || 0), 0);
+      d3.select("#total-dist-val").text(totalWeight.toLocaleString());
     }
 
     function toggleAllCategories(enableAll) {
@@ -1290,6 +1280,11 @@ Durango,Culiacán,230,Cuota,Ambos`;
       d3.select("#notice-banner").classed("hidden", true);
     }
 
+    function toggleUploadMenu(open = document.getElementById("upload-menu").classList.contains("hidden")) {
+      document.getElementById("upload-menu").classList.toggle("hidden", !open);
+      document.getElementById("upload-menu-button").setAttribute("aria-expanded", String(open));
+    }
+
     // Gestión de Carga de Archivos CSV
     let tempNodesCSV = null;
     let tempLinksCSV = null;
@@ -1302,6 +1297,7 @@ Durango,Culiacán,230,Cuota,Ambos`;
       reader.onload = function(e) {
         const text = e.target.result;
         const parsedRows = parseCustomCSV(text);
+        toggleUploadMenu(false);
 
         if (fileType === 'nodes') {
           tempNodesCSV = parsedRows;
@@ -1310,28 +1306,36 @@ Durango,Culiacán,230,Cuota,Ambos`;
         }
 
         // Si ambos archivos han sido cargados o se reemplaza uno manteniendo el otro
-        const nodesToUse = tempNodesCSV || parseCustomCSV(DEFAULT_MEXICO_NODES_CSV);
-        const linksToUse = tempLinksCSV || parseCustomCSV(DEFAULT_MEXICO_LINKS_CSV);
+        const nodesToUse = tempNodesCSV || parseCustomCSV(defaultNodesCSV);
+        const linksToUse = tempLinksCSV || parseCustomCSV(defaultLinksCSV);
 
         processGraphData(nodesToUse, linksToUse);
+      };
+      reader.onerror = function() {
+        showNotice(`No se pudo leer el archivo <strong>${file.name}</strong>.`);
       };
       reader.readAsText(file, "UTF-8");
     }
 
     // Generador de plantillas CSV para pruebas del usuario
     function exportCSVTemplates() {
-      const blobNodes = new Blob([DEFAULT_MEXICO_NODES_CSV], { type: 'text/csv;charset=utf-8;' });
-      const blobLinks = new Blob([DEFAULT_MEXICO_LINKS_CSV], { type: 'text/csv;charset=utf-8;' });
+      if (!defaultNodesCSV || !defaultLinksCSV) {
+        showNotice("Los archivos CSV iniciales todavía no están disponibles para descargar.");
+        return;
+      }
+
+      const blobNodes = new Blob([defaultNodesCSV], { type: 'text/csv;charset=utf-8;' });
+      const blobLinks = new Blob([defaultLinksCSV], { type: 'text/csv;charset=utf-8;' });
       
       const link1 = document.createElement("a");
       link1.href = URL.createObjectURL(blobNodes);
-      link1.download = "Puntos_Capitales.csv";
+      link1.download = "Points-ingredientes.csv";
       link1.click();
 
       setTimeout(() => {
         const link2 = document.createElement("a");
         link2.href = URL.createObjectURL(blobLinks);
-        link2.download = "Conexiones_Carreteras.csv";
+        link2.download = "Links-ingredientes.csv";
         link2.click();
       }, 300);
     }
@@ -1355,11 +1359,28 @@ Durango,Culiacán,230,Cuota,Ambos`;
     // ==========================================
     // 9 INICIO DE LA APLICACIÓN
     // ==========================================
-    window.onload = function() {
-      // Cargar datos predeterminados de la Red Vial de México al iniciar
-      const initialNodes = parseCustomCSV(DEFAULT_MEXICO_NODES_CSV);
-      const initialLinks = parseCustomCSV(DEFAULT_MEXICO_LINKS_CSV);
-      processGraphData(initialNodes, initialLinks);
+    window.onload = async function() {
+      try {
+        const [nodesResponse, linksResponse] = await Promise.all([
+          fetch(DEFAULT_NODES_PATH),
+          fetch(DEFAULT_LINKS_PATH)
+        ]);
+        if (!nodesResponse.ok || !linksResponse.ok) {
+          throw new Error(`HTTP ${nodesResponse.status}/${linksResponse.status}`);
+        }
+
+        [defaultNodesCSV, defaultLinksCSV] = await Promise.all([
+          nodesResponse.text(),
+          linksResponse.text()
+        ]);
+
+        const initialNodes = tempNodesCSV || parseCustomCSV(defaultNodesCSV);
+        const initialLinks = tempLinksCSV || parseCustomCSV(defaultLinksCSV);
+        processGraphData(initialNodes, initialLinks);
+      } catch (error) {
+        console.error("No se pudieron cargar los CSV iniciales.", error);
+        showNotice("No se pudieron cargar los datos iniciales. Abre la aplicación desde un servidor web local para permitir la lectura de la carpeta Data.");
+      }
     };
   </script>
 </body>
