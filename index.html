@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carreteras - Visualización de Redes de México</title>
+  <!-- D3.js v7 Librería principal para cálculo, procesamiento e interacciones SVG -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <!-- Tailwind CSS para diseño y estilos responsivos modernos -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* 1 CONFIGURACIÓN - AJUSTABLE: Tipografía y estilos base de interfaz */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif; /* AJUSTABLE: Tipografía del sistema */
+      background-color: #0f172a; /* AJUSTABLE: Fondo oscuro general (Slate 900) */
+      color: #f8fafc;
+      overflow: hidden;
+    }
+
+    /* Estilos para el visor SVG y transiciones suaves */
+    #network-svg {
+      cursor: grab;
+      background-color: #0b0f19; /* AJUSTABLE: Fondo del lienzo de la red */
+    }
+    #network-svg:active {
+      cursor: grabbing;
+    }
+
+    .node-element {
+      transition: opacity 0.25s ease, filter 0.25s ease;
+      cursor: pointer;
+    }
+
+    .link-element {
+      transition: stroke-opacity 0.25s ease, stroke-width 0.25s ease;
+    }
+
+    .dimmed {
+      opacity: 0.12 !important;
+    }
+
+    /* Estilo para barra de desplazamiento personalizada en barra lateral */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(51, 65, 85, 0.8);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(71, 85, 105, 1);
+    }
+
+    /* Tooltip contextual flotante */
+    #tooltip {
+      position: absolute;
+      pointer-events: none;
+      transition: opacity 0.15s ease-in-out;
+      z-index: 50;
+      backdrop-filter: blur(8px);
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col">
+
+  <!-- ENCABEZADO SUPERIOR Y CONTROL DE NAVEGACIÓN -->
+  <header class="bg-slate-900/90 border-b border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-lg z-20">
+    <div class="flex items-center space-x-3">
+      <div class="p-2 bg-indigo-600/20 text-indigo-400 rounded-lg border border-indigo-500/30">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+        </svg>
+      </div>
+      <div>
+        <h1 class="font-bold text-lg text-slate-100 leading-tight">Carreteras de México</h1>
+        <p class="text-xs text-slate-400">Red Vial de Capitales & Distancias Interurbanas</p>
+      </div>
+    </div>
+
+    <!-- Pestañas de Modos de Visualización -->
+    <nav class="flex items-center space-x-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800 overflow-x-auto max-w-full">
+      <button onclick="setMode('map')" id="btn-map" class="nav-tab px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-indigo-600 text-white shadow-sm">
+        📍 Mapa
+      </button>
+      <button onclick="setMode('force')" id="btn-force" class="nav-tab px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+        🕸️ Red
+      </button>
+      <button onclick="setMode('radial')" id="btn-radial" class="nav-tab px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+        ⭕ Radial
+      </button>
+      <button onclick="setMode('chord')" id="btn-chord" class="nav-tab px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+        🎗️ Cuerdas
+      </button>
+      <button onclick="setMode('concentric')" id="btn-concentric" class="nav-tab px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+        🎯 Concéntrico
+      </button>
+      <button onclick="setMode('arc')" id="btn-arc" class="nav-tab px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+        🌈 Arco
+      </button>
+      <button onclick="setMode('bipartite')" id="btn-bipartite" class="nav-tab px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+        📊 Bipartito
+      </button>
+    </nav>
+
+    <!-- Botones para Cargar CSVs Personalizados -->
+    <div class="flex items-center gap-2">
+      <label class="cursor-pointer px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+        Cargar nodos
+        <input type="file" id="nodes-file-input" accept=".csv" class="hidden" onchange="handleFileSelect(event, 'nodes')">
+      </label>
+      <label class="cursor-pointer px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+        Cargar conexiones
+        <input type="file" id="links-file-input" accept=".csv" class="hidden" onchange="handleFileSelect(event, 'links')">
+      </label>
+      <button onclick="exportCSVTemplates()" title="Descargar plantillas de ejemplo CSV" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded-lg border border-slate-700 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ÁREA PRINCIPAL WORKSPACE -->
+  <div class="flex-1 flex relative overflow-hidden">
+    
+    <!-- BARRA LATERAL IZQUIERDA (Leyenda, Filtros de Categorías y Capas) -->
+    <aside id="sidebar" class="w-72 bg-slate-900/95 border-r border-slate-800 flex flex-col justify-between transition-all duration-300 z-10">
+      <div class="p-4 space-y-5 overflow-y-auto max-h-full">
+        
+        <!-- Sección Leyenda y Filtros de Regiones/Categorías -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Categorías / Regiones</h2>
+            <button onclick="toggleAllCategories(true)" class="text-[10px] text-indigo-400 hover:underline">Todas</button>
+          </div>
+          <div id="categories-list" class="space-y-1.5">
+            <!-- Se llena dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Panel de Capas Visibles -->
+        <div class="pt-3 border-t border-slate-800">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Capas Visibles</h2>
+          <div class="space-y-2 text-xs text-slate-300">
+            <label class="flex items-center space-x-2 cursor-pointer hover:text-white">
+              <input type="checkbox" id="layer-nodes" checked onchange="toggleLayer('nodes')" class="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0">
+              <span>Nodos (Capitales)</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer hover:text-white">
+              <input type="checkbox" id="layer-links" checked onchange="toggleLayer('links')" class="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0">
+              <span>Conexiones (Carreteras)</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer hover:text-white">
+              <input type="checkbox" id="layer-labels" checked onchange="toggleLayer('labels')" class="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0">
+              <span>Etiquetas de Texto</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer hover:text-white">
+              <input type="checkbox" id="layer-arrows" checked onchange="toggleLayer('arrows')" class="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0">
+              <span>Sentido / Flechas</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer hover:text-white">
+              <input type="checkbox" id="layer-isolated" onchange="toggleLayer('isolated')" class="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0">
+              <span>Mostrar Nodos Aislados (<span id="isolated-count">0</span>)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Resumen de Métricas -->
+        <div class="pt-3 border-t border-slate-800 text-xs text-slate-400 space-y-1">
+          <div class="flex justify-between"><span>Capitales cargadas:</span> <strong id="total-nodes-val" class="text-slate-200">0</strong></div>
+          <div class="flex justify-between"><span>Tramos carreteros:</span> <strong id="total-links-val" class="text-slate-200">0</strong></div>
+          <div class="flex justify-between"><span>Distancia red total:</span> <strong id="total-dist-val" class="text-indigo-400">0 km</strong></div>
+        </div>
+      </div>
+
+      <!-- Botón para Colapsar Barra Lateral -->
+      <button onclick="toggleSidebar()" class="p-2 bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-center text-xs font-semibold border-t border-slate-800 transition">
+        ◀ Contraer Panel
+      </button>
+    </aside>
+
+    <!-- LIENZO DE VISUALIZACIÓN SVG -->
+    <main class="flex-1 relative bg-slate-950 flex items-center justify-center overflow-hidden">
+      
+      <!-- Banner de Avisos y Alertas del Sistema -->
+      <div id="notice-banner" class="hidden absolute top-4 left-4 right-4 max-w-2xl mx-auto bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs rounded-xl p-3 shadow-2xl backdrop-blur-md z-30 flex items-start justify-between gap-2">
+        <div class="flex items-start gap-2">
+          <svg class="w-4 h-4 text-amber-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          <div id="notice-content">Aviso del sistema de datos.</div>
+        </div>
+        <button onclick="hideNotice()" class="text-amber-400 hover:text-amber-100 font-bold">✕</button>
+      </div>
+
+      <!-- Control de Zoom en Pantalla -->
+      <div class="absolute bottom-4 right-4 flex flex-col space-y-1 bg-slate-900/80 border border-slate-800 p-1.5 rounded-xl shadow-lg z-20 backdrop-blur-sm">
+        <button onclick="zoomIn()" class="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg" title="Acercar">+</button>
+        <button onclick="resetZoom()" class="p-1.5 text-xs text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg" title="Restablecer">100%</button>
+        <button onclick="zoomOut()" class="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg" title="Alejar">-</button>
+      </div>
+
+      <!-- El Elemento SVG Principal de D3 -->
+      <svg id="network-svg" class="w-full h-full"></svg>
+    </main>
+  </div>
+
+  <!-- TOOLTIP FLOTANTE -->
+  <div id="tooltip" class="opacity-0 bg-slate-900/95 border border-slate-700/80 text-slate-100 rounded-xl p-3 text-xs shadow-2xl max-w-xs pointer-events-none">
+    <div id="tooltip-title" class="font-bold text-slate-100 mb-1 border-b border-slate-800 pb-1">--</div>
+    <div id="tooltip-body" class="space-y-1 text-slate-300">--</div>
+  </div>
+
+  <!-- SCRIPT LÓGICO COMPLETO DE LA APLICACIÓN -->
+  <script>
+    // ==========================================
+    // 1 CONFIGURACIÓN (Constantes ajustables)
+    // ==========================================
+    // AJUSTABLE: Paleta cromática por zonas geográficas / categorías de México
+    const CATEGORY_COLORS = {
+      "Norte": "#3b82f6",       // Azul brillante
+      "Centro": "#10b981",      // Esmeralda
+      "Sur": "#f59e0b",         // Ámbar
+      "Occidente": "#ec4899",   // Rosa cálido
+      "Oriente": "#8b5cf6",     // Violeta
+      "Península": "#06b6d4"    // Cían
+    };
+    const DEFAULT_COLOR = "#64748b"; // AJUSTABLE: Color por defecto para categorías no registradas
+
+    // AJUSTABLE: Configuración de dimensiones de renderizado
+    const NODE_RADIUS_MIN = 7;
+    const NODE_RADIUS_MAX = 18;
+    const LINK_WIDTH_MIN = 1.5;
+    const LINK_WIDTH_MAX = 7;
+    const DASHED_LINE_ARRAY = "5, 5"; // AJUSTABLE: Patrón de línea punteada para conexiones secundarias o especificadas
+
+    // ==========================================
+    // 2 ESTADO DE LA APLICACIÓN
+    // ==========================================
+    const state = {
+      nodes: [],
+      links: [],
+      nodeMap: new Map(),
+      categories: new Set(),
+      activeCategories: new Set(),
+      activeMode: 'map', // Modes: map, force, radial, chord, concentric, arc, bipartite
+      selectedNode: null,
+      hasNodeWeights: false,
+      hasLinkWeights: false,
+      hasLinkType: false,
+      hasLinkDirection: false,
+      layers: {
+        nodes: true,
+        links: true,
+        labels: true,
+        arrows: true,
+        isolated: false
+      },
+      zoomBehavior: null,
+      simulation: null,
+      isolatedNodesCount: 0,
+      columnsFound: { nodes: [], links: [] }
+    };
+
+    // ==========================================
+    // DATASET POR DEFECTO: CAPITALES DE MÉXICO
+    // ==========================================
+    const DEFAULT_MEXICO_NODES_CSV = `Nombre,Categoria,Peso,Latitud,Longitud
+Aguascalientes,Centro,1.3,21.882,102.296
+Mexicali,Norte,1.0,32.625,-115.454
+La Paz,Norte,0.8,24.142,-110.312
+Campeche,Península,1.1,19.830,-90.535
+Saltillo,Norte,1.4,25.423,-101.000
+Colima,Occidente,0.9,19.243,-103.725
+Tuxtla Gutiérrez,Sur,1.2,16.750,-93.117
+Chihuahua,Norte,1.5,28.633,-106.069
+Ciudad de México,Centro,3.0,19.433,-99.133
+Durango,Norte,1.1,24.027,-104.658
+Guanajuato,Centro,1.5,21.019,-101.257
+Chilpancingo,Sur,1.0,17.551,-99.500
+Pachuca,Centro,1.3,20.101,-98.759
+Guadalajara,Occidente,2.5,20.659,-103.349
+Toluca,Centro,1.8,19.283,-99.656
+Morelia,Occidente,1.6,19.701,-101.185
+Cuernavaca,Centro,1.4,18.926,-99.231
+Tepic,Occidente,1.0,21.504,-104.895
+Monterrey,Norte,2.6,25.686,-100.316
+Oaxaca,Sur,1.3,17.073,-96.727
+Puebla,Centro,2.2,19.041,-98.206
+Querétaro,Centro,2.0,20.588,-100.389
+Chetumal,Península,1.0,18.514,-88.303
+San Luis Potosí,Centro,1.9,22.156,-100.985
+Culiacán,Norte,1.4,24.809,-107.394
+Hermosillo,Norte,1.5,29.073,-110.956
+Villahermosa,Sur,1.3,17.989,-92.928
+Ciudad Victoria,Norte,1.2,23.736,-99.141
+Tlaxcala,Centro,1.1,19.318,-98.238
+Xalapa,Oriente,1.6,19.543,-96.910
+Mérida,Península,1.8,20.967,-89.624
+Zacatecas,Centro,1.2,22.771,-102.583`;
+
+    const DEFAULT_MEXICO_LINKS_CSV = `Origen,Destino,Peso,Tipo,Sentido
+San Luis Potosí,Querétaro,203,Cuota,Ambos
+Querétaro,Ciudad de México,218,Cuota,Ambos
+Ciudad de México,Toluca,65,Cuota,Ambos
+Ciudad de México,Puebla,130,Cuota,Ambos
+Ciudad de México,Cuernavaca,85,Cuota,Ambos
+Ciudad de México,Pachuca,90,Cuota,Ambos
+Ciudad de México,Tlaxcala,115,Libre,Ambos
+Guadalajara,Morelia,285,Cuota,Ambos
+Guadalajara,Tepic,205,Cuota,Ambos
+Guadalajara,Colima,220,Cuota,Ambos
+Guadalajara,Guanajuato,270,Cuota,Ambos
+Monterrey,Saltillo,85,Cuota,Ambos
+Monterrey,Ciudad Victoria,280,Libre,Ambos
+Saltillo,San Luis Potosí,440,Cuota,Ambos
+San Luis Potosí,Zacatecas,190,Libre,Ambos
+San Luis Potosí,Guanajuato,180,Libre,Ambos
+San Luis Potosí,Aguascalientes,170,Cuota,Ambos
+Aguascalientes,Zacatecas,118,Libre,Ambos
+Guanajuato,Querétaro,150,Cuota,Ambos
+Morelia,Toluca,240,Libre,Ambos
+Cuernavaca,Chilpancingo,210,Cuota,Ambos
+Puebla,Xalapa,180,Cuota,Ambos
+Puebla,Oaxaca,340,Cuota,Ambos
+Xalapa,Villahermosa,550,Libre,Ambos
+Villahermosa,Tuxtla Gutiérrez,240,Libre,Ambos
+Villahermosa,Campeche,380,Cuota,Ambos
+Campeche,Mérida,175,Cuota,Ambos
+Mérida,Chetumal,380,Libre,Ambos
+Chihuahua,Hermosillo,690,Libre,Ambos
+Chihuahua,Culiacán,1100,Libre,Ambos
+Chihuahua,Monterrey,810,Cuota,Ambos
+Hermosillo,Mexicali,690,Cuota,Ambos
+Culiacán,Tepic,490,Cuota,Ambos
+Durango,Zacatecas,290,Cuota,Ambos
+Durango,Culiacán,230,Cuota,Ambos`;
+
+    // ==========================================
+    // 3 LECTURA Y PROCESAMIENTO DE CSV
+    // ==========================================
+    /**
+     * Parsea un texto CSV respetando comillas, comas y punto y comas.
+     */
+    function parseCustomCSV(text) {
+      if (!text) return [];
+      // Normalización de saltos de línea y eliminación de BOM UTF-8
+      const cleanText = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      const lines = cleanText.split('\n').filter(l => l.trim().length > 0);
+      if (lines.length === 0) return [];
+
+      // Detectar separador (coma o punto y coma)
+      const firstLine = lines[0];
+      const separator = (firstLine.split(';').length > firstLine.split(',').length) ? ';' : ',';
+
+      return lines.map(line => {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"' || char === "'") {
+            inQuotes = !inQuotes;
+          } else if (char === separator && !inQuotes) {
+            result.push(current.trim().replace(/^["']|["']$/g, ''));
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        result.push(current.trim().replace(/^["']|["']$/g, ''));
+        return result;
+      });
+    }
+
+    /**
+     * Procesa las matrices del archivo de Nodos y Conexiones.
+     */
+    function processGraphData(nodesRows, linksRows) {
+      state.nodes = [];
+      state.links = [];
+      state.nodeMap.clear();
+      state.categories.clear();
+
+      if (nodesRows.length < 2 || linksRows.length < 2) {
+        showNotice("Los archivos proporcionados deben incluir una fila de encabezado y al menos una fila de datos.");
+        return;
+      }
+
+      // Guardar nombres de columnas
+      state.columnsFound.nodes = nodesRows[0];
+      state.columnsFound.links = linksRows[0];
+
+      // Determinar presencia de columnas opcionales
+      state.hasNodeWeights = nodesRows[0].length >= 3 && nodesRows[0][2].trim() !== "";
+      state.hasLinkWeights = linksRows[0].length >= 3 && linksRows[0][2].trim() !== "";
+      state.hasLinkType = linksRows[0].length >= 4 && linksRows[0][3].trim() !== "";
+      state.hasLinkDirection = linksRows[0].length >= 5 && linksRows[0][4].trim() !== "";
+
+      // 1. Cargar Nodos
+      for (let i = 1; i < nodesRows.length; i++) {
+        const row = nodesRows[i];
+        if (!row[0]) continue; // Omitir fila si nombre está vacío
+
+        const name = row[0].trim();
+        const category = row[1] ? row[1].trim() : "General";
+        const weight = state.hasNodeWeights ? parseFloat(row[2]) || 1.0 : 1.0;
+        
+        // Coordenadas geográficas si existen (opcionales)
+        const lat = row[3] ? parseFloat(row[3]) : null;
+        const lon = row[4] ? parseFloat(row[4]) : null;
+
+        const nodeObj = {
+          id: name,
+          name: name,
+          category: category,
+          weight: weight,
+          lat: lat,
+          lon: lon,
+          degree: 0,
+          neighbors: new Set()
+        };
+
+        state.nodes.push(nodeObj);
+        state.nodeMap.set(name, nodeObj);
+        state.categories.add(category);
+      }
+
+      state.activeCategories = new Set(state.categories);
+
+      // 2. Cargar Conexiones con validaciones
+      let missingLinksCount = 0;
+      const unknownNodeNames = new Set();
+
+      for (let i = 1; i < linksRows.length; i++) {
+        const row = linksRows[i];
+        const sourceName = row[0] ? row[0].trim() : "";
+        const targetName = row[1] ? row[1].trim() : "";
+
+        // Regla: Si origen o destino están vacíos, omitir fila
+        if (!sourceName || !targetName) {
+          missingLinksCount++;
+          continue;
+        }
+
+        // Regla: Verificar existencia en Nodos
+        const sourceExists = state.nodeMap.has(sourceName);
+        const targetExists = state.nodeMap.has(targetName);
+
+        if (!sourceExists) unknownNodeNames.add(sourceName);
+        if (!targetExists) unknownNodeNames.add(targetName);
+
+        if (sourceExists && targetExists) {
+          const weight = state.hasLinkWeights ? parseFloat(row[2]) || 1.0 : 1.0;
+          const type = state.hasLinkType ? row[3].trim() : "Normal";
+          const direction = state.hasLinkDirection ? row[4].trim() : "Ambos";
+
+          const linkObj = {
+            source: sourceName, // D3 lo actualizará a referencia de objeto en forceSimulation
+            target: targetName,
+            sourceId: sourceName,
+            targetId: targetName,
+            weight: weight,
+            type: type,
+            direction: direction
+          };
+
+          state.links.push(linkObj);
+
+          // Actualizar grados de conexión y vecinos
+          const u = state.nodeMap.get(sourceName);
+          const v = state.nodeMap.get(targetName);
+          u.degree += 1;
+          v.degree += 1;
+          u.neighbors.add(targetName);
+          v.neighbors.add(sourceName);
+        }
+      }
+
+      // Regla: Contar y gestionar Nodos Aislados
+      state.isolatedNodesCount = state.nodes.filter(n => n.degree === 0).length;
+
+      // Generar avisos en interfaz si existen anomalías
+      let notices = [];
+      if (missingLinksCount > 0) {
+        notices.push(`Se omitieron <strong>${missingLinksCount}</strong> fila(s) de conexiones por faltar origen o destino.`);
+      }
+      if (unknownNodeNames.size > 0) {
+        notices.push(`Nombres en conexiones no encontrados en Nodos: <strong>${Array.from(unknownNodeNames).join(', ')}</strong>.`);
+      }
+      if (state.isolatedNodesCount > 0) {
+        notices.push(`Existen <strong>${state.isolatedNodesCount}</strong> nodos sin conexiones (ocultos por defecto).`);
+      }
+
+      if (notices.length > 0) {
+        showNotice(notices.join('<br>'));
+      } else {
+        hideNotice();
+      }
+
+      updateUIControls();
+      renderCurrentMode();
+    }
+
+    // ==========================================
+    // 5 ESCALAS Y COLORIMETRÍA
+    // ==========================================
+    /**
+     * Obtiene color por categoría asignada o genera uno dinámico
+     */
+    function getNodeColor(category) {
+      if (CATEGORY_COLORS[category]) {
+        return CATEGORY_COLORS[category];
+      }
+      // Si es una categoría nueva de un CSV personalizado, derivar color hash
+      let hash = 0;
+      for (let i = 0; i < category.length; i++) {
+        hash = category.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+      return "#" + "00000".substring(0, 6 - c.length) + c;
+    }
+
+    /**
+     * Escala proporcional para el radio del nodo
+     */
+    function getNodeRadiusScale() {
+      const valueExtent = state.hasNodeWeights 
+        ? d3.extent(state.nodes, d => d.weight)
+        : d3.extent(state.nodes, d => d.degree);
+      
+      return d3.scaleSqrt()
+        .domain([valueExtent[0] || 1, valueExtent[1] || 10])
+        .range([NODE_RADIUS_MIN, NODE_RADIUS_MAX]);
+    }
+
+    /**
+     * Escala proporcional para el grosor de la línea/conexión
+     */
+    function getLinkWidthScale() {
+      if (!state.hasLinkWeights) return () => 2.0; // Grosor constante por defecto
+      const extent = d3.extent(state.links, d => d.weight);
+      return d3.scaleLinear()
+        .domain([extent[0] || 1, extent[1] || 100])
+        .range([LINK_WIDTH_MIN, LINK_WIDTH_MAX]);
+    }
+
+    // ==========================================
+    // 6 MODOS DE VISUALIZACIÓN & LAYOUTS
+    // ==========================================
+
+    /**
+     * Filtra nodos y conexiones según las capas y categorías activas
+     */
+    function getFilteredData() {
+      let filteredNodes = state.nodes.filter(n => state.activeCategories.has(n.category));
+      
+      // Ocultar nodos aislados si la capa no está activa
+      if (!state.layers.isolated) {
+        filteredNodes = filteredNodes.filter(n => n.degree > 0);
+      }
+
+      const activeNodeIds = new Set(filteredNodes.map(n => n.id));
+
+      const filteredLinks = state.links.filter(l => {
+        const src = typeof l.source === 'object' ? l.source.id : l.source;
+        const tgt = typeof l.target === 'object' ? l.target.id : l.target;
+        return activeNodeIds.has(src) && activeNodeIds.has(tgt);
+      });
+
+      return { nodes: filteredNodes, links: filteredLinks };
+    }
+
+    /**
+     * Renderizador principal según el modo seleccionado
+     */
+    function renderCurrentMode() {
+      const svg = d3.select("#network-svg");
+      svg.selectAll("*").remove(); // Limpiar lienzo anterior
+
+      const width = svg.node().clientWidth || window.innerWidth;
+      const height = svg.node().clientHeight || window.innerHeight;
+
+      // Crear grupo contenedor principal con zoom/pan
+      const g = svg.append("g").attr("id", "main-group");
+
+      state.zoomBehavior = d3.zoom()
+        .scaleExtent([0.2, 8])
+        .on("zoom", (event) => {
+          g.attr("transform", event.transform);
+        });
+
+      svg.call(state.zoomBehavior);
+
+      // Definir marcadores de flechas para sentido
+      svg.append("defs").selectAll("marker")
+        .data(["end-arrow", "start-arrow"])
+        .enter().append("marker")
+        .attr("id", d => d)
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 18)
+        .attr("refY", 0)
+        .attr("markerWidth", 6)
+        .attr("markerHeight", 6)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", d => d === "end-arrow" ? "M0,-5L10,0L0,5" : "M10,-5L0,0L10,5")
+        .attr("fill", "#94a3b8");
+
+      const { nodes, links } = getFilteredData();
+
+      if (nodes.length === 0) {
+        g.append("text")
+          .attr("x", width / 2)
+          .attr("y", height / 2)
+          .attr("text-anchor", "middle")
+          .attr("fill", "#64748b")
+          .text("No hay datos visibles con los filtros actuales.");
+        return;
+      }
+
+      // Detener simulación previa de fuerzas si existe
+      if (state.simulation) state.simulation.stop();
+
+      try {
+        switch (state.activeMode) {
+          case 'map':
+            renderMapMode(g, width, height, nodes, links);
+            break;
+          case 'force':
+            renderForceMode(g, width, height, nodes, links);
+            break;
+          case 'radial':
+            renderRadialMode(g, width, height, nodes, links);
+            break;
+          case 'chord':
+            renderChordMode(g, width, height, nodes, links);
+            break;
+          case 'concentric':
+            renderConcentricMode(g, width, height, nodes, links);
+            break;
+          case 'arc':
+            renderArcMode(g, width, height, nodes, links);
+            break;
+          case 'bipartite':
+            renderBipartiteMode(g, width, height, nodes, links);
+            break;
+          default:
+            renderForceMode(g, width, height, nodes, links);
+        }
+      } catch (err) {
+        console.error("Error al renderizar el modo " + state.activeMode, err);
+        g.append("text")
+          .attr("x", width / 2)
+          .attr("y", height / 2)
+          .attr("text-anchor", "middle")
+          .attr("fill", "#ef4444")
+          .text("Ocurrió un error al cargar este modo de visualización.");
+      }
+    }
+
+    // ----------------------------------------------------
+    // MODO 1: MAPA GEOGRÁFICO DE MÉXICO (Ubicaciones Reales)
+    // ----------------------------------------------------
+    function renderMapMode(g, width, height, nodes, links) {
+      // Proyección geoMercator enfocada en la República Mexicana
+      const projection = d3.geoMercator()
+        .center([-102, 23.5]) // Coordenadas del centro geográfico de México
+        .scale(Math.min(width, height) * 1.7)
+        .translate([width / 2, height / 2]);
+
+      nodes.forEach(d => {
+        if (d.lat && d.lon) {
+          const coords = projection([d.lon, d.lat]);
+          d.x = coords[0];
+          d.y = coords[1];
+        } else {
+          // Si no tiene coordenadas geográficas, colocar de forma predeterminada
+          d.x = width / 2;
+          d.y = height / 2;
+        }
+      });
+
+      drawStandardLinksAndNodes(g, nodes, links);
+    }
+
+    // ----------------------------------------------------
+    // MODO 2: RED (Force Directed Graph)
+    // ----------------------------------------------------
+    function renderForceMode(g, width, height, nodes, links) {
+      // Copia profunda para evitar mutación de referencias
+      const linksCopy = links.map(d => Object.assign({}, d));
+      const nodesCopy = nodes.map(d => Object.assign({}, d));
+
+      const rScale = getNodeRadiusScale();
+
+      state.simulation = d3.forceSimulation(nodesCopy)
+        .force("link", d3.forceLink(linksCopy).id(d => d.id).distance(90))
+        .force("charge", d3.forceManyBody().strength(-240))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collision", d3.forceCollide().radius(d => rScale(state.hasNodeWeights ? d.weight : d.degree) + 8));
+
+      const linkElements = drawLinks(g, linksCopy);
+      const nodeElements = drawNodes(g, nodesCopy, true); // Permite arrastrar nodos
+
+      state.simulation.on("tick", () => {
+        linkElements
+          .attr("x1", d => d.source.x)
+          .attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x)
+          .attr("y2", d => d.target.y);
+
+        nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
+      });
+    }
+
+    // ----------------------------------------------------
+    // MODO 3: RADIAL (Nodos en Circunferencia)
+    // ----------------------------------------------------
+    function renderRadialMode(g, width, height, nodes, links) {
+      const radius = Math.min(width, height) * 0.38;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const angleStep = (2 * Math.PI) / nodes.length;
+
+      const nodePosMap = new Map();
+
+      nodes.forEach((node, i) => {
+        const angle = i * angleStep - Math.PI / 2;
+        node.x = centerX + radius * Math.cos(angle);
+        node.y = centerY + radius * Math.sin(angle);
+        nodePosMap.set(node.id, { x: node.x, y: node.y });
+      });
+
+      drawStandardLinksAndNodes(g, nodes, links);
+    }
+
+    // ----------------------------------------------------
+    // MODO 4: CUERDAS (Chord Diagram de Tramos)
+    // ----------------------------------------------------
+    function renderChordMode(g, width, height, nodes, links) {
+      const outerRadius = Math.min(width, height) * 0.4;
+      const innerRadius = outerRadius - 20;
+
+      // Construir matriz de adyacencia
+      const indexMap = new Map();
+      nodes.forEach((n, i) => indexMap.set(n.id, i));
+      const matrix = Array(nodes.length).fill(0).map(() => Array(nodes.length).fill(0));
+
+      links.forEach(l => {
+        const i = indexMap.get(typeof l.source === 'object' ? l.source.id : l.source);
+        const j = indexMap.get(typeof l.target === 'object' ? l.target.id : l.target);
+        if (i !== undefined && j !== undefined) {
+          const w = l.weight || 1;
+          matrix[i][j] += w;
+          matrix[j][i] += w;
+        }
+      });
+
+      const chordLayout = d3.chord().padAngle(0.04)(matrix);
+      const chordGroup = g.append("g").attr("transform", `translate(${width / 2},${height / 2})`);
+
+      // Arcos de los nodos
+      const arcGenerator = d3.arc().innerRadius(innerRadius).outerRadius(outerRadius);
+
+      const groupG = chordGroup.append("g")
+        .selectAll("g")
+        .data(chordLayout.groups)
+        .enter().append("g");
+
+      groupG.append("path")
+        .attr("fill", d => getNodeColor(nodes[d.index].category))
+        .attr("stroke", "#0f172a")
+        .attr("d", arcGenerator)
+        .on("mouseover", (event, d) => showTooltipNode(event, nodes[d.index]))
+        .on("mouseout", hideTooltip);
+
+      if (state.layers.labels) {
+        groupG.append("text")
+          .each(d => { d.angle = (d.startAngle + d.endAngle) / 2; })
+          .attr("dy", ".35em")
+          .attr("transform", d => `
+            rotate(${d.angle * 180 / Math.PI - 90})
+            translate(${outerRadius + 10})
+            ${d.angle > Math.PI ? "rotate(180)" : ""}
+          `)
+          .attr("text-anchor", d => d.angle > Math.PI ? "end" : "start")
+          .attr("fill", "#cbd5e1")
+          .attr("font-size", "10px")
+          .text(d => nodes[d.index].name);
+      }
+
+      // Cintas / Cuerdas
+      if (state.layers.links) {
+        const ribbonGenerator = d3.ribbon().radius(innerRadius);
+        chordGroup.append("g")
+          .attr("fill-opacity", 0.65)
+          .selectAll("path")
+          .data(chordLayout)
+          .enter().append("path")
+          .attr("d", ribbonGenerator)
+          .attr("fill", d => getNodeColor(nodes[d.source.index].category))
+          .attr("stroke", "#0f172a")
+          .attr("stroke-width", 0.5)
+          .on("mouseover", (event, d) => {
+            const src = nodes[d.source.index];
+            const tgt = nodes[d.target.index];
+            showCustomTooltip(event, `Conexión Cuerda: ${src.name} ↔ ${tgt.name}`, `Volumen/Valor: <strong>${d.source.value}</strong>`);
+          })
+          .on("mouseout", hideTooltip);
+      }
+    }
+
+    // ----------------------------------------------------
+    // MODO 5: CONCÉNTRICO (Anillos por Peso/Grado)
+    // ----------------------------------------------------
+    function renderConcentricMode(g, width, height, nodes, links) {
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      // Ordenar nodos por importancia (peso o grado)
+      const sortedNodes = [...nodes].sort((a, b) => (b.weight || b.degree) - (a.weight || a.degree));
+      
+      const numRings = 3;
+      const ringRadiusStep = Math.min(width, height) * 0.12;
+
+      // Asignar anillo (0 = centro, 1 = medio, 2 = exterior)
+      const nodesPerRing = Math.ceil(sortedNodes.length / numRings);
+      
+      // Dibujar guías de anillos concéntricos
+      for (let r = 1; r <= numRings; r++) {
+        g.append("circle")
+          .attr("cx", centerX)
+          .attr("cy", centerY)
+          .attr("r", r * ringRadiusStep)
+          .attr("fill", "none")
+          .attr("stroke", "#334155")
+          .attr("stroke-dasharray", "4,4");
+      }
+
+      sortedNodes.forEach((node, i) => {
+        const ringIndex = Math.min(Math.floor(i / nodesPerRing) + 1, numRings);
+        const countInRing = Math.min(nodesPerRing, sortedNodes.length - (ringIndex - 1) * nodesPerRing);
+        const indexInRing = i % nodesPerRing;
+
+        const angle = (indexInRing / countInRing) * 2 * Math.PI - Math.PI / 2;
+        const currentRadius = ringIndex * ringRadiusStep;
+
+        node.x = centerX + currentRadius * Math.cos(angle);
+        node.y = centerY + currentRadius * Math.sin(angle);
+      });
+
+      drawStandardLinksAndNodes(g, nodes, links);
+    }
+
+    // ----------------------------------------------------
+    // MODO 6: ARCO (Arc Diagram Horizontal)
+    // ----------------------------------------------------
+    function renderArcMode(g, width, height, nodes, links) {
+      const margin = 80;
+      const startX = margin;
+      const endX = width - margin;
+      const stepY = height / 2 + 50;
+
+      // Ordenar nodos por categoría o nombre
+      const sortedNodes = [...nodes].sort((a, b) => a.category.localeCompare(b.category));
+      const stepX = (endX - startX) / Math.max(1, sortedNodes.length - 1);
+
+      const nodePosMap = new Map();
+      sortedNodes.forEach((node, i) => {
+        node.x = startX + i * stepX;
+        node.y = stepY;
+        nodePosMap.set(node.id, node);
+      });
+
+      // Dibujar enlaces como arcos Bézier superiores
+      if (state.layers.links) {
+        const linkWidthScale = getLinkWidthScale();
+        const linksGroup = g.append("g").attr("class", "links-layer");
+
+        links.forEach(l => {
+          const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+          const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+          const u = nodePosMap.get(srcId);
+          const v = nodePosMap.get(tgtId);
+
+          if (u && v) {
+            const x1 = u.x;
+            const x2 = v.x;
+            const distance = Math.abs(x2 - x1);
+            const arcHeight = Math.min(distance * 0.5, height * 0.4);
+
+            const pathD = `M ${x1} ${stepY} A ${distance / 2} ${arcHeight} 0 0 ${x1 < x2 ? 1 : 0} ${x2} ${stepY}`;
+
+            linksGroup.append("path")
+              .attr("d", pathD)
+              .attr("fill", "none")
+              .attr("stroke", getNodeColor(u.category))
+              .attr("stroke-width", linkWidthScale(l.weight))
+              .attr("stroke-opacity", 0.5)
+              .attr("stroke-dasharray", (l.type === "Libre" || l.type === "Punteada") ? DASHED_LINE_ARRAY : null)
+              .on("mouseover", (event) => showTooltipLink(event, l))
+              .on("mouseout", hideTooltip);
+          }
+        });
+      }
+
+      drawNodes(g, sortedNodes, false);
+    }
+
+    // ----------------------------------------------------
+    // MODO 7: BIPARTITO EN COLUMNAS (Categorizado)
+    // ----------------------------------------------------
+    function renderBipartiteMode(g, width, height, nodes, links) {
+      const cats = Array.from(state.categories);
+      if (cats.length < 2) {
+        // Fallback si no hay suficientes categorías diferenciadas
+        renderRadialMode(g, width, height, nodes, links);
+        return;
+      }
+
+      // Dividir nodos entre la primera categoría y el resto
+      const col1Category = cats[0];
+      const col1Nodes = nodes.filter(n => n.category === col1Category);
+      const col2Nodes = nodes.filter(n => n.category !== col1Category);
+
+      const col1X = width * 0.25;
+      const col2X = width * 0.75;
+
+      const stepY1 = height / (col1Nodes.length + 1);
+      col1Nodes.forEach((node, i) => {
+        node.x = col1X;
+        node.y = (i + 1) * stepY1;
+      });
+
+      const stepY2 = height / (col2Nodes.length + 1);
+      col2Nodes.forEach((node, i) => {
+        node.x = col2X;
+        node.y = (i + 1) * stepY2;
+      });
+
+      // Dibujar enlaces como curvas horizontales
+      if (state.layers.links) {
+        const linkWidthScale = getLinkWidthScale();
+        const linksGroup = g.append("g");
+
+        const nodePosMap = new Map(nodes.map(n => [n.id, n]));
+
+        links.forEach(l => {
+          const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+          const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+          const u = nodePosMap.get(srcId);
+          const v = nodePosMap.get(tgtId);
+
+          if (u && v) {
+            const linkGen = d3.linkHorizontal()
+              .x(d => d.x)
+              .y(d => d.y);
+
+            linksGroup.append("path")
+              .attr("d", linkGen({ source: u, target: v }))
+              .attr("fill", "none")
+              .attr("stroke", getNodeColor(u.category))
+              .attr("stroke-width", linkWidthScale(l.weight))
+              .attr("stroke-opacity", 0.4)
+              .on("mouseover", (event) => showTooltipLink(event, l))
+              .on("mouseout", hideTooltip);
+          }
+        });
+      }
+
+      drawNodes(g, nodes, false);
+    }
+
+    // ==========================================
+    // FUNCIONES AUXILIARES DE DIBUJO DE NODOS Y ENLACES
+    // ==========================================
+
+    function drawStandardLinksAndNodes(g, nodes, links) {
+      const nodePosMap = new Map(nodes.map(n => [n.id, n]));
+      
+      // Adaptar fuentes y destinos
+      const resolvedLinks = links.map(l => {
+        const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+        const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+        return {
+          ...l,
+          sourceObj: nodePosMap.get(srcId),
+          targetObj: nodePosMap.get(tgtId)
+        };
+      }).filter(l => l.sourceObj && l.targetObj);
+
+      drawLinksStatic(g, resolvedLinks);
+      drawNodes(g, nodes, false);
+    }
+
+    function drawLinksStatic(g, links) {
+      if (!state.layers.links) return;
+      const linkWidthScale = getLinkWidthScale();
+
+      return g.append("g")
+        .selectAll("line")
+        .data(links)
+        .enter().append("line")
+        .attr("class", "link-element")
+        .attr("x1", d => d.sourceObj.x)
+        .attr("y1", d => d.sourceObj.y)
+        .attr("x2", d => d.targetObj.x)
+        .attr("y2", d => d.targetObj.y)
+        .attr("stroke", d => getNodeColor(d.sourceObj.category))
+        .attr("stroke-opacity", 0.5)
+        .attr("stroke-width", d => linkWidthScale(d.weight))
+        .attr("stroke-dasharray", d => (d.type === "Libre" || d.type === "Punteada") ? DASHED_LINE_ARRAY : null)
+        .attr("marker-end", d => (state.layers.arrows && (d.direction === "Origen → Destino" || d.direction === "Ambos")) ? "url(#end-arrow)" : null)
+        .attr("marker-start", d => (state.layers.arrows && (d.direction === "Destino → Origen" || d.direction === "Ambos")) ? "url(#start-arrow)" : null)
+        .on("mouseover", (event, d) => showTooltipLink(event, d))
+        .on("mouseout", hideTooltip);
+    }
+
+    function drawLinks(g, links) {
+      if (!state.layers.links) return g.append("g").selectAll("line");
+      const linkWidthScale = getLinkWidthScale();
+
+      return g.append("g")
+        .selectAll("line")
+        .data(links)
+        .enter().append("line")
+        .attr("class", "link-element")
+        .attr("stroke", d => {
+          const cat = typeof d.source === 'object' ? d.source.category : 'General';
+          return getNodeColor(cat);
+        })
+        .attr("stroke-opacity", 0.5)
+        .attr("stroke-width", d => linkWidthScale(d.weight))
+        .attr("stroke-dasharray", d => (d.type === "Libre" || d.type === "Punteada") ? DASHED_LINE_ARRAY : null)
+        .attr("marker-end", d => (state.layers.arrows && (d.direction === "Origen → Destino" || d.direction === "Ambos")) ? "url(#end-arrow)" : null)
+        .attr("marker-start", d => (state.layers.arrows && (d.direction === "Destino → Origen" || d.direction === "Ambos")) ? "url(#start-arrow)" : null)
+        .on("mouseover", (event, d) => showTooltipLink(event, d))
+        .on("mouseout", hideTooltip);
+    }
+
+    function drawNodes(g, nodes, enableDrag) {
+      if (!state.layers.nodes) return g.append("g").selectAll("g");
+
+      const rScale = getNodeRadiusScale();
+
+      const nodeGroup = g.append("g")
+        .selectAll("g")
+        .data(nodes)
+        .enter().append("g")
+        .attr("class", "node-element")
+        .attr("transform", d => `translate(${d.x},${d.y})`)
+        .on("click", (event, d) => handleNodeClick(event, d))
+        .on("mouseover", (event, d) => showTooltipNode(event, d))
+        .on("mouseout", hideTooltip);
+
+      // Círculo principal del nodo
+      nodeGroup.append("circle")
+        .attr("r", d => rScale(state.hasNodeWeights ? d.weight : d.degree))
+        .attr("fill", d => getNodeColor(d.category))
+        .attr("stroke", "#1e293b")
+        .attr("stroke-width", 2)
+        .attr("shadow-sm", true);
+
+      // Etiquetas de Texto
+      if (state.layers.labels) {
+        nodeGroup.append("text")
+          .attr("x", d => rScale(state.hasNodeWeights ? d.weight : d.degree) + 4)
+          .attr("y", 4)
+          .attr("fill", "#f1f5f9")
+          .attr("font-size", "11px")
+          .attr("font-weight", "500")
+          .style("pointer-events", "none")
+          .text(d => d.name);
+      }
+
+      if (enableDrag && state.simulation) {
+        nodeGroup.call(d3.drag()
+          .on("start", dragstarted)
+          .on("drag", dragged)
+          .on("end", dragended));
+      }
+
+      return nodeGroup;
+    }
+
+    // Acciones de Arrastre para Modo Red
+    function dragstarted(event, d) {
+      if (!event.active) state.simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+    function dragged(event, d) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+    function dragended(event, d) {
+      if (!event.active) state.simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
+
+    // ==========================================
+    // 7 INTERACCIÓN & RESALTADO (Click & Hover)
+    // ==========================================
+    function handleNodeClick(event, clickedNode) {
+      event.stopPropagation();
+
+      if (state.selectedNode === clickedNode) {
+        // Deseleccionar
+        state.selectedNode = null;
+        d3.selectAll(".node-element").classList?.remove("dimmed");
+        d3.selectAll(".node-element, .link-element").classed("dimmed", false);
+        return;
+      }
+
+      state.selectedNode = clickedNode;
+
+      // Resaltar nodo seleccionado y sus vecinos directos
+      d3.selectAll(".node-element").classed("dimmed", d => {
+        return d.id !== clickedNode.id && !clickedNode.neighbors.has(d.id);
+      });
+
+      d3.selectAll(".link-element").classed("dimmed", d => {
+        const srcId = typeof d.source === 'object' ? d.source.id : (d.sourceObj ? d.sourceObj.id : d.source);
+        const tgtId = typeof d.target === 'object' ? d.target.id : (d.targetObj ? d.targetObj.id : d.target);
+        return srcId !== clickedNode.id && tgtId !== clickedNode.id;
+      });
+    }
+
+    // Click en el fondo del SVG para limpiar selección
+    d3.select("#network-svg").on("click", () => {
+      state.selectedNode = null;
+      d3.selectAll(".node-element, .link-element").classed("dimmed", false);
+    });
+
+    // Tooltip en Nodos
+    function showTooltipNode(event, d) {
+      const tooltip = d3.select("#tooltip");
+      d3.select("#tooltip-title").text(d.name);
+
+      let content = `
+        <div><strong>Categoría/Zona:</strong> ${d.category}</div>
+        <div><strong>Conexiones (Grado):</strong> ${d.degree}</div>
+      `;
+      if (state.hasNodeWeights) {
+        content += `<div><strong>Peso/Importancia:</strong> ${d.weight}</div>`;
+      }
+      if (d.lat && d.lon) {
+        content += `<div><strong>Ubicación:</strong> ${d.lat.toFixed(2)}°, ${d.lon.toFixed(2)}°</div>`;
+      }
+
+      d3.select("#tooltip-body").html(content);
+
+      tooltip
+        .style("left", (event.clientX + 15) + "px")
+        .style("top", (event.clientY + 15) + "px")
+        .style("opacity", 1);
+    }
+
+    // Tooltip en Conexiones
+    function showTooltipLink(event, d) {
+      const tooltip = d3.select("#tooltip");
+      const srcName = typeof d.source === 'object' ? d.source.name : (d.sourceObj ? d.sourceObj.name : d.source);
+      const tgtName = typeof d.target === 'object' ? d.target.name : (d.targetObj ? d.targetObj.name : d.target);
+
+      d3.select("#tooltip-title").text(`${srcName} ↔ ${tgtName}`);
+
+      let content = `
+        <div><strong>Distancia/Peso:</strong> ${d.weight} km</div>
+        <div><strong>Tipo de Vía:</strong> ${d.type}</div>
+        <div><strong>Sentido:</strong> ${d.direction}</div>
+      `;
+
+      d3.select("#tooltip-body").html(content);
+
+      tooltip
+        .style("left", (event.clientX + 15) + "px")
+        .style("top", (event.clientY + 15) + "px")
+        .style("opacity", 1);
+    }
+
+    function showCustomTooltip(event, title, bodyHtml) {
+      const tooltip = d3.select("#tooltip");
+      d3.select("#tooltip-title").text(title);
+      d3.select("#tooltip-body").html(bodyHtml);
+      tooltip
+        .style("left", (event.clientX + 15) + "px")
+        .style("top", (event.clientY + 15) + "px")
+        .style("opacity", 1);
+    }
+
+    function hideTooltip() {
+      d3.select("#tooltip").style("opacity", 0);
+    }
+
+    // ==========================================
+    // 8 INTERFAZ Y CONTROLES HTML
+    // ==========================================
+    function setMode(modeKey) {
+      state.activeMode = modeKey;
+      d3.selectAll(".nav-tab")
+        .classed("bg-indigo-600 text-white shadow-sm", false)
+        .classed("text-slate-400 hover:text-slate-200 hover:bg-slate-800/60", true);
+
+      d3.select(`#btn-${modeKey}`)
+        .classed("bg-indigo-600 text-white shadow-sm", true)
+        .classed("text-slate-400 hover:text-slate-200 hover:bg-slate-800/60", false);
+
+      renderCurrentMode();
+    }
+
+    function toggleLayer(layerKey) {
+      const checkbox = document.getElementById(`layer-${layerKey}`);
+      if (checkbox) {
+        state.layers[layerKey] = checkbox.checked;
+        renderCurrentMode();
+      }
+    }
+
+    function updateUIControls() {
+      // Actualizar lista de categorías y sus switches
+      const container = d3.select("#categories-list");
+      container.html("");
+
+      state.categories.forEach(cat => {
+        const color = getNodeColor(cat);
+        const count = state.nodes.filter(n => n.category === cat).length;
+
+        const row = container.append("label")
+          .attr("class", "flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-800/60 cursor-pointer text-xs text-slate-300");
+
+        const left = row.append("div").attr("class", "flex items-center space-x-2");
+        
+        left.append("input")
+          .attr("type", "checkbox")
+          .attr("checked", state.activeCategories.has(cat) ? true : null)
+          .attr("class", "rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0")
+          .on("change", (e) => {
+            if (e.target.checked) state.activeCategories.add(cat);
+            else state.activeCategories.delete(cat);
+            renderCurrentMode();
+          });
+
+        left.append("span")
+          .attr("class", "w-2.5 h-2.5 rounded-full inline-block")
+          .style("background-color", color);
+
+        left.append("span").text(cat);
+
+        row.append("span")
+          .attr("class", "text-[10px] text-slate-500 font-mono")
+          .text(count);
+      });
+
+      // Actualizar contadores globales
+      d3.select("#total-nodes-val").text(state.nodes.length);
+      d3.select("#total-links-val").text(state.links.length);
+      d3.select("#isolated-count").text(state.isolatedNodesCount);
+
+      const totalKm = state.links.reduce((acc, curr) => acc + (curr.weight || 0), 0);
+      d3.select("#total-dist-val").text(`${totalKm.toLocaleString()} km`);
+    }
+
+    function toggleAllCategories(enableAll) {
+      if (enableAll) {
+        state.activeCategories = new Set(state.categories);
+      } else {
+        state.activeCategories.clear();
+      }
+      updateUIControls();
+      renderCurrentMode();
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById("sidebar");
+      sidebar.classList.toggle("-ml-72");
+    }
+
+    function showNotice(msgHtml) {
+      d3.select("#notice-content").html(msgHtml);
+      d3.select("#notice-banner").classed("hidden", false);
+    }
+
+    function hideNotice() {
+      d3.select("#notice-banner").classed("hidden", true);
+    }
+
+    // Gestión de Carga de Archivos CSV
+    let tempNodesCSV = null;
+    let tempLinksCSV = null;
+
+    function handleFileSelect(event, fileType) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        const parsedRows = parseCustomCSV(text);
+
+        if (fileType === 'nodes') {
+          tempNodesCSV = parsedRows;
+        } else if (fileType === 'links') {
+          tempLinksCSV = parsedRows;
+        }
+
+        // Si ambos archivos han sido cargados o se reemplaza uno manteniendo el otro
+        const nodesToUse = tempNodesCSV || parseCustomCSV(DEFAULT_MEXICO_NODES_CSV);
+        const linksToUse = tempLinksCSV || parseCustomCSV(DEFAULT_MEXICO_LINKS_CSV);
+
+        processGraphData(nodesToUse, linksToUse);
+      };
+      reader.readAsText(file, "UTF-8");
+    }
+
+    // Generador de plantillas CSV para pruebas del usuario
+    function exportCSVTemplates() {
+      const blobNodes = new Blob([DEFAULT_MEXICO_NODES_CSV], { type: 'text/csv;charset=utf-8;' });
+      const blobLinks = new Blob([DEFAULT_MEXICO_LINKS_CSV], { type: 'text/csv;charset=utf-8;' });
+      
+      const link1 = document.createElement("a");
+      link1.href = URL.createObjectURL(blobNodes);
+      link1.download = "Puntos_Capitales.csv";
+      link1.click();
+
+      setTimeout(() => {
+        const link2 = document.createElement("a");
+        link2.href = URL.createObjectURL(blobLinks);
+        link2.download = "Conexiones_Carreteras.csv";
+        link2.click();
+      }, 300);
+    }
+
+    // Zoom Controls
+    function zoomIn() {
+      d3.select("#network-svg").transition().duration(300).call(state.zoomBehavior.scaleBy, 1.3);
+    }
+    function zoomOut() {
+      d3.select("#network-svg").transition().duration(300).call(state.zoomBehavior.scaleBy, 0.7);
+    }
+    function resetZoom() {
+      d3.select("#network-svg").transition().duration(300).call(state.zoomBehavior.transform, d3.zoomIdentity);
+    }
+
+    // Redimensionamiento Adaptativo de Ventana
+    window.addEventListener("resize", () => {
+      renderCurrentMode();
+    });
+
+    // ==========================================
+    // 9 INICIO DE LA APLICACIÓN
+    // ==========================================
+    window.onload = function() {
+      // Cargar datos predeterminados de la Red Vial de México al iniciar
+      const initialNodes = parseCustomCSV(DEFAULT_MEXICO_NODES_CSV);
+      const initialLinks = parseCustomCSV(DEFAULT_MEXICO_LINKS_CSV);
+      processGraphData(initialNodes, initialLinks);
+    };
+  </script>
+</body>
+</html>
